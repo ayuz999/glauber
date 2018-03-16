@@ -1,0 +1,12 @@
+Universe       = vanilla
+Notification   = never
+Requirements   = (CPU_Type != "crs") && (CPU_Experiment == "star")
++Experiment    = "star"
+Priority       = +10
++Job_Type      = "cas"
+GetEnv         = true
+Executable     = analysis
+Log            = job.log
+Output         = job.out
+Error          = job.err
+Queue

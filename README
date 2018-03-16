@@ -1,0 +1,60 @@
+#The submit jobs method is using condor_submit, so cannot be used on PDSF
+#You can write your own macro on PDSF
+#The starver in *.csh file need be updated to that you used when cons
+
+1 ./prepare.sh
+   mkdir the needed directory
+   if the directory exists, clear it
+
+2 ./all_submit_doFastGlauberMcMaker.csh AuAu 200 0 5 1
+   run the fast mc glauber model
+   the result root file is saved in output/
+   if you have the result root file, needn’t run this again
+
+3. scan NBD fit parameter, get the best chi2/ndf
+   3.0 ./createList.csh
+   3.1 root -b -q addNcollVsNpart.C
+       create ncoll_npart.root file keeped in current directory
+       this will be used for scan the best NBD(Negative Binomial Distribution) parameters:npp, k, x
+   3.2 write the gRefMult root file from data,
+       this time I use Run14_glauber_gRefMult.root. You should change the name in doScanX_my.csh and doNbdFitMaker.C
+   3.3 before you scan, you can close centrality definition at: StRoot/StCentralityMaker/StNbdFitMaker::StNbdFitMaker()
+       and you can define your own scan range of npp, k, x, (eff), and scan step length at submit_doScan.pl
+   3.4 ./submit_doScan.pl
+       scan, choose the best chi2/ndf————see: cat LOG/*.out | grep "chi2/ndf"
+       # 1. eff, eff in fact is inefficiency, eff->low, refmult->larger
+       # 2. k, k->lw, refmult range->larger
+       # 3. when scan, you can loop small event sample, set in doScan_my.csh, nevents = ?;
+   3.5 choose the best chi2/ndf, then fix the the efficiency, npp, x, k.
+       Get the Ratio_npp*.root, this saved the mc gRefMult and the mc/data ratio
+   3.6 after re-weight you can run this again to get the corrected mc/data ratio
+   3.7 note: in order to get the Ratio*.root you should close the centrality definition at 3.3. otherwise it put out a “ut[0].push_back(  22 ; mCentralityMin[0].push_back( 65.0 ; mCentralityMax[0].push_back( 70.0 ;”
+
+4. systematic errors
+   4.1 get the centrality definition from step 3, and copy those and npp, k, x to StRoot/StCentralityMaker/StCentrality::Init_AuAu200GeV()
+   4.2 ./createList.csh
+       create root file lists produced at 2
+       the lists are saved in LIST
+   4.3 ./all_doAnalysisMaker.csh AuAu_200GeV kFALSE kFALSE
+       analyse the root file produced at 2
+       produce new root file named "ana_*.root”
+       and produce tables saved in table/
+   4.4 ./all_doPlotMaker.csh 200 
+       plot figure from 4.3’s table
+       saved in figure/
+       and get the systematic err table saved in current directory
+
+#Note: Maybe the star library need be updated in "cons" and .csh file
+#
+# problem:
+# 1. in step 2, I don't know the where to set the NBD fit parameters: npp-2.02, k=2.0, x=0.12, and 
+#    smallNpp: Small npp=1.957, large x=0.14
+#    largeNpp: Large npp=2.16, small x=0.10
+#    ———————get it, this is defined at StRoot/StCentralityMaker/StCentrality::Init_AuAu200GeV()
+#
+# 2. in step 2, what's use of "type=gauss", it first set "mCollisionProfile = mkGaussianProfile", at initAuAu
+#    but then set mCollisionProfile to be the default value mkHardCoreProfile
+#    ———————I changed this in StFastGlauberMcMaker class. But the systematic gets very bad, so I changed back
+#
+# 3. in step 4, why "type = smallTotal" and "type = default" use the same root file list???
+#    how to set ± 5 % total cross section 
